@@ -51,15 +51,16 @@ chown -R ubuntu:ubuntu /home/ubuntu
 # Clone project repository (if using git)
 # git clone https://github.com/yourusername/llm-inference.git /home/ubuntu/llm-inference
 
-# Create virtual environment
-echo "Setting up Python environment..."
-cd /home/ubuntu/llm-inference
-python3 -m venv venv
-source venv/bin/activate
+# Install uv package manager
+echo "Installing uv package manager..."
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
 
-# Install Python dependencies
-pip install --upgrade pip
-pip install -r requirements.txt || echo "requirements.txt not found, skipping"
+# Create virtual environment and install dependencies using uv
+echo "Setting up Python environment with uv..."
+cd /home/ubuntu/llm-inference
+uv venv .venv
+uv sync || echo "pyproject.toml not found, skipping dependency install"
 
 # Create environment file
 cat > /home/ubuntu/llm-inference/.env << EOF
@@ -91,8 +92,8 @@ After=network.target
 Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu/llm-inference
-Environment=PATH=/home/ubuntu/llm-inference/venv/bin
-ExecStart=/home/ubuntu/llm-inference/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+Environment=PATH=/home/ubuntu/llm-inference/.venv/bin:/home/ubuntu/.local/bin
+ExecStart=/home/ubuntu/llm-inference/.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=10
 
@@ -245,12 +246,19 @@ echo ""
 echo "Next steps:"
 echo "1. SSH into the instance"
 echo "2. Download the model:"
+echo "   source ~/.local/bin/env"
 echo "   huggingface-cli login"
 echo "   huggingface-cli download $MODEL_NAME --local-dir /home/ubuntu/models/llama-3.2-11b-vision"
 echo "3. Start the API:"
 echo "   sudo systemctl start llm-api"
 echo "4. Check the health:"
 echo "   curl http://localhost:8000/health"
+echo ""
+echo "Using uv for package management:"
+echo "   cd /home/ubuntu/llm-inference"
+echo "   uv sync              # Install dependencies"
+echo "   uv run pytest        # Run tests"
+echo "   uv add <package>     # Add a new dependency"
 echo ""
 echo "Access:"
 echo "- API: http://<public-ip>:8000"

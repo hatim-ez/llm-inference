@@ -55,18 +55,21 @@ This project implements a complete inference system for the Llama 3.2 11B Vision
 git clone <repo-url>
 cd llm-inference
 
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install dependencies
-pip install -r requirements.txt
+# Create virtual environment and install dependencies
+uv sync
 
 # Copy environment file
 cp config/.env.example config/.env
 # Edit .env with your settings
 
 # Run the API (without model for testing)
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Or activate the virtual environment manually
+source .venv/bin/activate
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
@@ -198,7 +201,7 @@ docker-compose up -d
 
 ```bash
 # Interactive GPU monitor
-python scripts/monitor_gpu.py
+uv run python scripts/monitor_gpu.py
 
 # Or use nvtop
 nvtop
@@ -209,7 +212,7 @@ nvtop
 ### Performance Benchmark
 
 ```bash
-python scripts/benchmark.py \
+uv run python scripts/benchmark.py \
   --model /path/to/model \
   --batch-sizes 1,4,8,16 \
   --num-prompts 10 \
@@ -219,11 +222,41 @@ python scripts/benchmark.py \
 ### Load Testing
 
 ```bash
-python scripts/load_test.py \
+uv run python scripts/load_test.py \
   --url http://localhost:8000 \
   --requests 100 \
   --concurrency 10 \
   --output load_test.json
+```
+
+## Development with uv
+
+This project uses [uv](https://github.com/astral-sh/uv) for fast, reliable Python package management.
+
+```bash
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install all dependencies
+uv sync
+
+# Install with dev dependencies
+uv sync --dev
+
+# Add a new dependency
+uv add <package>
+
+# Add a dev dependency
+uv add --dev <package>
+
+# Run tests
+uv run pytest
+
+# Run linting
+uv run ruff check .
+
+# Run type checking
+uv run mypy app/
 ```
 
 ## Configuration
