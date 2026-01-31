@@ -1,0 +1,34 @@
+# Example Terraform Variables
+# Copy this file to terraform.tfvars and update values
+
+# Project Configuration
+project_name = "llm-inference"
+environment  = "dev"
+
+# AWS Configuration
+aws_region = "us-east-1"
+
+# Network Configuration
+vpc_cidr           = "10.0.0.0/16"
+public_subnet_cidr = "10.0.1.0/24"
+
+# Security Configuration
+# IMPORTANT: Update these with your IP addresses for security
+allowed_ssh_cidrs = ["YOUR_IP/32"]  # e.g., ["203.0.113.0/32"]
+allowed_api_cidrs = ["0.0.0.0/0"]   # Consider restricting in production
+allowed_monitoring_cidrs = ["YOUR_IP/32"]
+
+# SSH Key Configuration
+# Option 1: Provide public key content to create new key pair
+# ssh_public_key = "ssh-rsa AAAAB3... your-email@example.com"
+
+# Option 2: Use existing key pair name
+existing_key_name = "your-existing-key-name"
+
+# EC2 Configuration
+instance_type    = "g5.2xlarge"  # 1x NVIDIA A10G 24GB
+root_volume_size = 500           # GB
+
+# Model Configuration
+model_name             = "meta-llama/Llama-3.2-11B-Vision-Instruct"
+gpu_memory_utilization = 0.90

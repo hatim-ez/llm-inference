@@ -1,0 +1,168 @@
+# Prometheus Alert Rules for LLM Inference System
+
+groups:
+  - name: llm_inference_alerts
+    rules:
+      # GPU Alerts
+      - alert: GPUHighTemperature
+        expr: DCGM_FI_DEV_GPU_TEMP > 85
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "GPU temperature is critically high"
+          description: "GPU {{ $labels.gpu }} temperature is {{ $value }}°C (threshold: 85°C)"
+
+      - alert: GPUTemperatureWarning
+        expr: DCGM_FI_DEV_GPU_TEMP > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GPU temperature is elevated"
+          description: "GPU {{ $labels.gpu }} temperature is {{ $value }}°C (threshold: 80°C)"
+
+      - alert: GPUMemoryNearlyFull
+        expr: (DCGM_FI_DEV_FB_USED / DCGM_FI_DEV_FB_FREE) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "GPU memory nearly exhausted"
+          description: "GPU {{ $labels.gpu }} memory utilization is above 95%"
+
+      - alert: GPUMemoryHigh
+        expr: (DCGM_FI_DEV_FB_USED / DCGM_FI_DEV_FB_FREE) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GPU memory utilization high"
+          description: "GPU {{ $labels.gpu }} memory utilization is above 90%"
+
+      - alert: GPULowUtilization
+        expr: DCGM_FI_DEV_GPU_UTIL < 20
+        for: 1h
+        labels:
+          severity: info
+        annotations:
+          summary: "GPU underutilized"
+          description: "GPU {{ $labels.gpu }} utilization is below 20% - consider reducing instance size"
+
+      # API Alerts
+      - alert: APIHighErrorRate
+        expr: |
+          sum(rate(llm_inference_requests_total{status="error"}[5m])) /
+          sum(rate(llm_inference_requests_total[5m])) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API error rate is high"
+          description: "Error rate is above 10% (current: {{ $value | humanizePercentage }})"
+
+      - alert: APIErrorRateWarning
+        expr: |
+          sum(rate(llm_inference_requests_total{status="error"}[5m])) /
+          sum(rate(llm_inference_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API error rate elevated"
+          description: "Error rate is above 5% (current: {{ $value | humanizePercentage }})"
+
+      - alert: APIHighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(llm_inference_request_duration_seconds_bucket[5m])) by (le)) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API latency is high"
+          description: "P95 latency is above 10 seconds (current: {{ $value | humanizeDuration }})"
+
+      - alert: APIDown
+        expr: up{job="llm-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "LLM Inference API is down"
+          description: "The LLM Inference API is not responding to health checks"
+
+      - alert: APILowThroughput
+        expr: sum(rate(llm_inference_requests_total[5m])) < 1
+        for: 15m
+        labels:
+          severity: info
+        annotations:
+          summary: "API throughput is low"
+          description: "API is processing less than 1 request per second"
+
+      # System Alerts
+      - alert: HighCPUUsage
+        expr: 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is above 80% (current: {{ $value | humanizePercentage }})"
+
+      - alert: HighMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is above 90% (current: {{ $value | humanizePercentage }})"
+
+      - alert: DiskSpaceLow
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk space is low"
+          description: "Available disk space is below 10% (current: {{ $value | humanizePercentage }})"
+
+      - alert: DiskSpaceCritical
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk space critically low"
+          description: "Available disk space is below 5% (current: {{ $value | humanizePercentage }})"
+
+  - name: llm_inference_slos
+    rules:
+      # SLO: 99% availability
+      - alert: SLOAvailabilityBreach
+        expr: |
+          (1 - (
+            sum(rate(llm_inference_requests_total{status="success"}[1h])) /
+            sum(rate(llm_inference_requests_total[1h]))
+          )) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SLO availability breach"
+          description: "Availability dropped below 99% SLO (current: {{ $value | humanizePercentage }} errors)"
+
+      # SLO: P95 latency < 5s
+      - alert: SLOLatencyBreach
+        expr: |
+          histogram_quantile(0.95, sum(rate(llm_inference_request_duration_seconds_bucket[1h])) by (le)) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SLO latency breach"
+          description: "P95 latency exceeded 5s SLO (current: {{ $value | humanizeDuration }})"
