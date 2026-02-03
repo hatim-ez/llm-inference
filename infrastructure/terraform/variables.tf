@@ -91,3 +91,34 @@ variable "gpu_memory_utilization" {
   type        = number
   default     = 0.90
 }
+
+# Cost Controls
+variable "budget_limit" {
+  description = "Monthly cost budget in USD"
+  type        = number
+  default     = 50
+}
+
+variable "budget_alert_threshold" {
+  description = "Percentage of budget that triggers alert emails"
+  type        = number
+  default     = 80
+}
+
+variable "budget_alert_email" {
+  description = "Email address to receive budget alerts"
+  type        = string
+  default     = "replace-me@example.com"
+}
+
+variable "enable_budget_action" {
+  description = "Whether to auto-stop the EC2 instance when budget threshold is crossed"
+  type        = bool
+  default     = false
+}
+
+variable "budget_action_threshold" {
+  description = "Percentage of budget that triggers the stop action"
+  type        = number
+  default     = 100
+}

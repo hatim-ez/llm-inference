@@ -31,16 +31,26 @@ data "aws_availability_zones" "available" {
 
 data "aws_ami" "deep_learning" {
   most_recent = true
-  owners      = ["amazon"]
+  owners      = ["898082745236"]  # DLAMI publisher
 
   filter {
     name   = "name"
-    values = ["Deep Learning AMI GPU PyTorch *-Ubuntu 22.04-*"]
+    values = ["Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)*"]
   }
 
   filter {
     name   = "architecture"
     values = ["x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  filter {
+    name   = "root-device-type"
+    values = ["ebs"]
   }
 }
 
@@ -261,6 +271,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "logs" {
     id     = "expire-old-logs"
     status = "Enabled"
 
+    filter {
+      prefix = ""
+    }
+
     expiration {
       days = 30
     }
@@ -355,5 +369,100 @@ resource "aws_cloudwatch_metric_alarm" "status_check" {
 
   dimensions = {
     InstanceId = aws_instance.llm_inference.id
+  }
+}
+
+# -------------------------
+# Cost control: Budget + Alerts
+# -------------------------
+
+resource "aws_sns_topic" "budget_alerts" {
+  name = "${var.project_name}-budget-alerts"
+}
+
+resource "aws_sns_topic_subscription" "budget_email" {
+  topic_arn = aws_sns_topic.budget_alerts.arn
+  protocol  = "email"
+  endpoint  = var.budget_alert_email
+}
+
+resource "aws_budgets_budget" "monthly" {
+  name              = "${var.project_name}-monthly-budget"
+  budget_type       = "COST"
+  limit_amount      = var.budget_limit
+  limit_unit        = "USD"
+  time_unit         = "MONTHLY"
+
+  notification {
+    comparison_operator = "GREATER_THAN"
+    threshold           = var.budget_alert_threshold
+    threshold_type      = "PERCENTAGE"
+    notification_type   = "ACTUAL"
+    subscriber_sns_topic_arns = [aws_sns_topic.budget_alerts.arn]
+  }
+}
+
+# IAM role for budget actions (SSM stop)
+resource "aws_iam_role" "budget_actions" {
+  name = "${var.project_name}-budget-actions"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = {
+          Service = "budgets.amazonaws.com"
+        },
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "budget_actions" {
+  name = "${var.project_name}-budget-actions-policy"
+  role = aws_iam_role.budget_actions.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "ec2:StopInstances",
+          "ec2:DescribeInstances"
+        ],
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Optional action: stop the EC2 instance when budget threshold is crossed
+resource "aws_budgets_budget_action" "stop_instance" {
+  count             = var.enable_budget_action ? 1 : 0
+  budget_name       = aws_budgets_budget.monthly.id
+  action_type       = "RUN_SSM_DOCUMENTS"
+  approval_model    = "AUTOMATIC"
+  notification_type = "ACTUAL"
+  execution_role_arn = aws_iam_role.budget_actions.arn
+
+  action_threshold {
+    action_threshold_type  = "PERCENTAGE"
+    action_threshold_value = var.budget_action_threshold
+  }
+
+  definition {
+    ssm_action_definition {
+      action_sub_type = "STOP_EC2_INSTANCES"
+      region          = var.aws_region
+      instance_ids    = [aws_instance.llm_inference.id]
+    }
+  }
+
+  subscriber {
+    subscription_type = "SNS"
+    address           = aws_sns_topic.budget_alerts.arn
   }
 }
