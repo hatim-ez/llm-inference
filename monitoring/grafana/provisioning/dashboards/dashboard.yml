@@ -6,7 +6,7 @@ providers:
   - name: 'default'
     orgId: 1
     folder: 'LLM Inference'
-    folderUid: 'llm-inference'
+    folderUid: 'llm-inference-folder'
     type: file
     disableDeletion: false
     editable: true
