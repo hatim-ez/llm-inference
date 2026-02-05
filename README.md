@@ -12,6 +12,8 @@ This project implements a complete inference system for the Llama 3.2 11B Vision
 - **Infrastructure as Code**: Terraform for AWS deployment
 - **Benchmarking Tools**: Load testing and performance profiling
 
+Edit: The goal was to use Llama 3.2 11B Vision model but instead I'm using LLama-3.2-3b as I understand that the vLLM v1 engine does not yet support multimodal models that rely on cross-attention
+
 ## Architecture
 
 ```
