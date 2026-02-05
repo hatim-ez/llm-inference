@@ -20,6 +20,12 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+variable "aws_profile" {
+  description = "AWS CLI profile name to use for authentication"
+  type        = string
+  default     = ""
+}
+
 # Network Configuration
 variable "vpc_cidr" {
   description = "CIDR block for VPC"
@@ -121,4 +127,17 @@ variable "budget_action_threshold" {
   description = "Percentage of budget that triggers the stop action"
   type        = number
   default     = 100
+}
+
+# Spot Instances
+variable "use_spot" {
+  description = "Whether to request the EC2 instance as a Spot instance"
+  type        = bool
+  default     = false
+}
+
+variable "spot_max_price" {
+  description = "Optional max hourly price for Spot (empty means pay current spot price)"
+  type        = string
+  default     = ""
 }

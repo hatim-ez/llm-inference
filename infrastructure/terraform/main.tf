@@ -14,6 +14,7 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
+  profile = var.aws_profile != "" ? var.aws_profile : null
 
   default_tags {
     tags = {
@@ -297,6 +298,16 @@ resource "aws_instance" "llm_inference" {
   vpc_security_group_ids = [aws_security_group.llm_inference.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
 
+  dynamic "instance_market_options" {
+    for_each = var.use_spot ? [1] : []
+    content {
+      market_type = "spot"
+      spot_options {
+        max_price = var.spot_max_price != "" ? var.spot_max_price : null
+      }
+    }
+  }
+
   root_block_device {
     volume_size           = var.root_volume_size
     volume_type           = "gp3"
@@ -387,7 +398,7 @@ resource "aws_sns_topic_subscription" "budget_email" {
 }
 
 resource "aws_budgets_budget" "monthly" {
-  name              = "${var.project_name}-monthly-budget"
+  name              = "${var.project_name}-per-month-budget"
   budget_type       = "COST"
   limit_amount      = var.budget_limit
   limit_unit        = "USD"
@@ -442,7 +453,8 @@ resource "aws_iam_role_policy" "budget_actions" {
 # Optional action: stop the EC2 instance when budget threshold is crossed
 resource "aws_budgets_budget_action" "stop_instance" {
   count             = var.enable_budget_action ? 1 : 0
-  budget_name       = aws_budgets_budget.monthly.id
+  # Use the budget's name (not the imported id which includes account ID) to satisfy API regex.
+  budget_name       = aws_budgets_budget.monthly.name
   action_type       = "RUN_SSM_DOCUMENTS"
   approval_model    = "AUTOMATIC"
   notification_type = "ACTUAL"
