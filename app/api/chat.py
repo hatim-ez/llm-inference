@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 
 from app.config import Settings, get_settings
 from app.core.vllm_engine import VLLMEngine
+from app.utils.metrics import record_error, record_generation, record_request
 from app.models import (
     ChatCompletionChunk,
     ChatCompletionChunkChoice,
@@ -133,6 +134,7 @@ async def create_chat_completion(
         )
 
     # Non-streaming response
+    start_time = time.time()
     try:
         result = await engine.generate(
             prompt=prompt,
@@ -145,6 +147,9 @@ async def create_chat_completion(
             n=request.n,
         )
     except Exception as e:
+        duration = time.time() - start_time
+        record_request(endpoint="/v1/chat/completions", status="error", duration=duration)
+        record_error(error_type="generation_error")
         logger.error("generation_failed", request_id=request_id, error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -172,6 +177,15 @@ async def create_chat_completion(
             completion_tokens=result["completion_tokens"],
             total_tokens=result["total_tokens"],
         ),
+    )
+
+    # Record metrics
+    duration = time.time() - start_time
+    record_request(endpoint="/v1/chat/completions", status="success", duration=duration)
+    record_generation(
+        prompt_tokens=result["prompt_tokens"],
+        completion_tokens=result["completion_tokens"],
+        generation_time=result["generation_time"],
     )
 
     logger.info(
@@ -209,6 +223,9 @@ async def _stream_response(
     """
     import json
 
+    start_time = time.time()
+    total_tokens = 0
+
     # Send initial chunk with role
     initial_chunk = ChatCompletionChunk(
         id=request_id,
@@ -235,6 +252,10 @@ async def _stream_response(
             presence_penalty=request.presence_penalty,
             frequency_penalty=request.frequency_penalty,
         ):
+            # Count tokens (approximate by content length / 4)
+            if chunk["content"]:
+                total_tokens += max(1, len(chunk["content"]) // 4)
+
             content_chunk = ChatCompletionChunk(
                 id=request_id,
                 created=created,
@@ -249,7 +270,19 @@ async def _stream_response(
             )
             yield f"data: {content_chunk.model_dump_json()}\n\n"
 
+        # Record success metrics
+        duration = time.time() - start_time
+        record_request(endpoint="/v1/chat/completions", status="success", duration=duration)
+        record_generation(
+            prompt_tokens=0,  # Not available in streaming mode
+            completion_tokens=total_tokens,
+            generation_time=duration,
+        )
+
     except Exception as e:
+        duration = time.time() - start_time
+        record_request(endpoint="/v1/chat/completions", status="error", duration=duration)
+        record_error(error_type="streaming_error")
         logger.error("streaming_failed", request_id=request_id, error=str(e))
         # Send error as final chunk
         error_data = {"error": {"message": str(e), "type": "server_error"}}
