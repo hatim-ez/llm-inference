@@ -89,7 +89,7 @@ async def list_models(
     )
 
 
-@router.post("/chat/completions")
+@router.post("/chat/completions", response_model=None)
 async def create_chat_completion(
     request: ChatCompletionRequest,
     engine: VLLMEngine = Depends(get_engine),
