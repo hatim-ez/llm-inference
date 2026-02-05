@@ -95,12 +95,37 @@ INSTANCE_IP=$(terraform output -raw public_ip)
 ssh -i your-key.pem ubuntu@$INSTANCE_IP
 ```
 
+### EC2 Instance Setup
+
+```bash
+# SSH into instance
+ssh -i your-key.pem ubuntu@$INSTANCE_IP
+
+# Install uv (Python package manager)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Source the uv environment
+source ~/.local/bin/env
+
+# Create and activate a virtual environment
+uv venv ~/venv
+source ~/venv/bin/activate
+
+# Install huggingface_hub
+uv pip install huggingface_hub[cli]
+```
+
 ### Download Model
 
 ```bash
-# On the EC2 instance
-huggingface-cli login
-huggingface-cli download meta-llama/Llama-3.2-11B-Vision-Instruct \
+# Authenticate with Hugging Face (get token from https://huggingface.co/settings/tokens)
+hf auth login
+
+# Create model directory
+mkdir -p /home/ubuntu/models/llama-3.2-11b-vision
+
+# Download the model
+hf download meta-llama/Llama-3.2-11B-Vision-Instruct \
   --local-dir /home/ubuntu/models/llama-3.2-11b-vision
 
 # Start the API
