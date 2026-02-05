@@ -41,8 +41,29 @@ GENERATION_TIME = Histogram(
 
 TOKENS_PER_SECOND = Histogram(
     "llm_inference_tokens_per_second",
-    "Tokens generated per second",
+    "Tokens generated per second (distribution)",
     buckets=[1, 5, 10, 20, 50, 100, 200, 500],
+)
+
+# Gauges for "current" / "last" values - easier to read without rate()
+LAST_REQUEST_LATENCY = Gauge(
+    "llm_inference_last_request_duration_seconds",
+    "Duration of the most recent request",
+)
+
+LAST_TOKENS_PER_SECOND = Gauge(
+    "llm_inference_last_tokens_per_second",
+    "Tokens per second of the most recent generation",
+)
+
+LAST_GENERATION_TOKENS = Gauge(
+    "llm_inference_last_generation_tokens",
+    "Number of tokens generated in the most recent request",
+)
+
+LAST_PROMPT_TOKENS = Gauge(
+    "llm_inference_last_prompt_tokens",
+    "Number of prompt tokens in the most recent request",
 )
 
 # Queue metrics
@@ -137,6 +158,7 @@ def record_request(endpoint: str, status: str, duration: float) -> None:
     """
     REQUEST_COUNT.labels(endpoint=endpoint, status=status).inc()
     REQUEST_LATENCY.labels(endpoint=endpoint).observe(duration)
+    LAST_REQUEST_LATENCY.set(duration)
 
 
 def record_generation(
@@ -151,13 +173,21 @@ def record_generation(
         completion_tokens: Number of generated tokens.
         generation_time: Time taken for generation.
     """
+    # Counters (cumulative totals)
     TOKENS_PROMPT.inc(prompt_tokens)
     TOKENS_GENERATED.inc(completion_tokens)
+
+    # Histograms (for percentile calculations)
     GENERATION_TIME.observe(generation_time)
+
+    # Gauges (current/last values - easy to read without rate())
+    LAST_PROMPT_TOKENS.set(prompt_tokens)
+    LAST_GENERATION_TOKENS.set(completion_tokens)
 
     if generation_time > 0:
         tokens_per_sec = completion_tokens / generation_time
         TOKENS_PER_SECOND.observe(tokens_per_sec)
+        LAST_TOKENS_PER_SECOND.set(tokens_per_sec)
 
 
 def record_gpu_metrics(
