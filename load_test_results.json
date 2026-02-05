@@ -1,0 +1,47 @@
+{
+  "config": {
+    "num_requests": 50,
+    "concurrency": 5,
+    "max_tokens": 100,
+    "ramp_up_time": 0
+  },
+  "summary": {
+    "total_requests": 50,
+    "successful_requests": 22,
+    "failed_requests": 28,
+    "total_duration": 365.7949752807617,
+    "throughput": 0.06014298032146055,
+    "tokens_per_second": 4.8360423722119865
+  },
+  "latency": {
+    "min": 2.702989101409912,
+    "max": 2.9995527267456055,
+    "mean": 2.7213712713935156,
+    "p50": 2.707743763923645,
+    "p90": 2.713907980918884,
+    "p95": 2.7152839064598084,
+    "p99": 2.9398678827285765
+  },
+  "errors": [
+    "Timeout",
+    "Timeout",
+    "Timeout",
+    "Timeout",
+    "Timeout",
+    "Timeout",
+    "Timeout",
+    "Timeout",
+    "Timeout",
+    "Timeout",
+    "Timeout",
+    "Timeout",
+    "Timeout",
+    "Timeout",
+    "Timeout",
+    "Timeout",
+    "Timeout",
+    "Timeout",
+    "Timeout",
+    "Timeout"
+  ]
+}

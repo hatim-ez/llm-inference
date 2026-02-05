@@ -1,0 +1,72 @@
+{
+  "config": {
+    "model": "/home/ubuntu/models/llama-3.2-3b",
+    "batch_sizes": [
+      1,
+      2,
+      4,
+      8
+    ],
+    "num_prompts": 15,
+    "max_tokens": 100,
+    "gpu_memory_utilization": 0.9
+  },
+  "results": [
+    {
+      "config_name": "batch_1",
+      "batch_size": 1,
+      "throughput": 0.37026685129976905,
+      "tokens_per_second": 37.026685129976904,
+      "avg_latency": 2.7007548650105795,
+      "p50_latency": 2.699908494949341,
+      "p90_latency": 2.709020471572876,
+      "p95_latency": 2.712314224243164,
+      "p99_latency": 2.715790672302246,
+      "tokens_generated": 1500,
+      "gpu_memory_mb": 14769.0,
+      "gpu_utilization": 97.0
+    },
+    {
+      "config_name": "batch_2",
+      "batch_size": 2,
+      "throughput": 0.6899005388170212,
+      "tokens_per_second": 68.99005388170211,
+      "avg_latency": 2.8989686012268066,
+      "p50_latency": 2.8981776237487793,
+      "p90_latency": 2.9042704105377197,
+      "p95_latency": 2.9052828788757323,
+      "p99_latency": 2.9061990547180176,
+      "tokens_generated": 3000,
+      "gpu_memory_mb": 14771.0,
+      "gpu_utilization": 98.0
+    },
+    {
+      "config_name": "batch_4",
+      "batch_size": 4,
+      "throughput": 1.3559701870471204,
+      "tokens_per_second": 135.59701870471204,
+      "avg_latency": 2.949917364120483,
+      "p50_latency": 2.9488914012908936,
+      "p90_latency": 2.951682615280151,
+      "p95_latency": 2.9554465293884276,
+      "p99_latency": 2.9621321296691896,
+      "tokens_generated": 6000,
+      "gpu_memory_mb": 14771.0,
+      "gpu_utilization": 98.0
+    },
+    {
+      "config_name": "batch_8",
+      "batch_size": 8,
+      "throughput": 2.650566355822411,
+      "tokens_per_second": 265.0566355822411,
+      "avg_latency": 3.0182228724161786,
+      "p50_latency": 3.015949010848999,
+      "p90_latency": 3.0252458572387697,
+      "p95_latency": 3.0255625247955322,
+      "p99_latency": 3.025742769241333,
+      "tokens_generated": 12000,
+      "gpu_memory_mb": 14771.0,
+      "gpu_utilization": 98.0
+    }
+  ]
+}
