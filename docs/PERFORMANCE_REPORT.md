@@ -202,6 +202,100 @@ timeout = 60  # seconds instead of default
 
 ---
 
+## Test 3: NVIDIA Nsight Systems GPU Profile
+
+**Purpose:** Deep-dive into GPU kernel execution and identify low-level bottlenecks
+
+**Profile Tool:** `nsys profile` with vLLM inference
+**Profile Script:** `nsys_vllm_profile.py`
+
+### CUDA API Time Breakdown
+
+| Operation | % of API Time | Implication |
+|-----------|---------------|-------------|
+| `cudaMemcpyAsync` | ~41% | Memory transfers (H2D) |
+| `cudaEventSynchronize` | ~30% | Host waiting for GPU |
+| `cudaDeviceSynchronize` | ~16% | More host blocking |
+| Other | ~13% | Kernel launches, etc. |
+
+### GPU Kernel Analysis
+
+**Top Kernels (by execution time):**
+1. **Turing FP16 Tensor Core GEMMs** (`turing_fp16_s1688gemm...`)
+   - This is expected and good - GPU is doing matrix multiplications
+   - Using Tensor Cores efficiently
+
+2. **Triton Fused Ops** - Custom fused operations
+3. **FlashInfer Kernels** - Attention computation
+
+### Memory Transfer Analysis
+
+| Direction | Total | Observation |
+|-----------|-------|-------------|
+| **H2D (Host→Device)** | ~6.4 GB | Large transfers (model weights, graph capture) |
+| **D2H (Device→Host)** | Minimal | Good - not bottlenecked on output |
+| **Largest single transfer** | ~788 MB | One-time initialization |
+
+### Key Findings
+
+1. **GPU is Doing the Right Work**
+   - FP16 Tensor Core GEMMs dominate kernel time
+   - Attention kernels (FlashInfer) are efficient
+   - No unexpected kernels or inefficiencies
+
+2. **Host-Side Synchronization Overhead**
+   - 46% of CUDA API time is synchronization (`cudaEventSynchronize` + `cudaDeviceSynchronize`)
+   - Host threads spend most time waiting, not computing
+   - This is typical for small batch sizes and async GPU workloads
+
+3. **Profile Includes Setup Overhead**
+   - 6.4 GB H2D transfers include model loading (one-time cost)
+   - Warmup phase inflates sync/memcpy percentages
+   - Steady-state performance would show less overhead
+
+### CPU Thread Analysis
+
+| State | Observation |
+|-------|-------------|
+| `pthread_cond_*` | Threads waiting on conditions |
+| `epoll_wait` | I/O polling (idle) |
+| `poll` | More waiting |
+
+**Interpretation:** CPU threads are mostly idle/syncing, not CPU-bound. This is normal for async GPU workloads.
+
+### Recommendations from Profiling
+
+1. **Profile Steady-State Only**
+   ```python
+   import torch
+   torch.cuda.profiler.start()
+   llm.generate(["prompt"], params)
+   torch.cuda.profiler.stop()
+   ```
+   Run with: `nsys profile --capture-range=cudaProfilerApi --capture-range-end=stop ...`
+
+2. **Add NVTX Annotations for Phase Tracking**
+   ```python
+   import nvtx
+   with nvtx.annotate("warmup"):
+       llm.generate(["warmup"], params)
+   with nvtx.annotate("generate"):
+       llm.generate(["real"], params)
+   ```
+
+3. **Increase Batch Size** to reduce sync overhead percentage and see sustained GPU utilization
+
+### Profile Summary
+
+| Aspect | Status | Notes |
+|--------|--------|-------|
+| Kernel efficiency | ✅ Good | Tensor Core GEMMs as expected |
+| Memory transfers | ✅ Normal | One-time model load dominates |
+| Host sync overhead | ⚠️ High | 46% - typical for small batches |
+| CPU utilization | ✅ Normal | Threads idle (GPU-bound workload) |
+
+---
+
 ## Appendix
 
 ### Test Commands
@@ -237,3 +331,6 @@ For Llama 3.2 3B with float16:
 
 - `benchmark_results.json` - Direct vLLM benchmark results
 - `load_test_results.json` - API load test results
+- `inference_profile.nsys-rep` - NVIDIA Nsight Systems profile
+- `nsys_report.md` - Nsight analysis notes
+- `nsys_vllm_profile.py` - Profiling script
