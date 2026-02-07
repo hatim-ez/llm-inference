@@ -18,11 +18,11 @@ class Settings(BaseSettings):
 
     # Model Configuration
     model_name: str = Field(
-        default="Llama-3.2-11B-Vision-Instruct",
+        default="Llama-3.2-3B-Instruct",
         description="Name of the model",
     )
     model_path: str = Field(
-        default="/home/ubuntu/models/llama-3.2-11b-vision",
+        default="/home/ubuntu/models/llama-3.2-3b",
         description="Path to the model weights",
     )
 
