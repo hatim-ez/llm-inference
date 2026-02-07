@@ -70,9 +70,14 @@ class Settings(BaseSettings):
         description="API port",
     )
     rate_limit: int = Field(
-        default=100,
+        default=1000,
         ge=1,
         description="Requests per minute rate limit",
+    )
+    rate_limit_burst: int = Field(
+        default=100,
+        ge=1,
+        description="Maximum burst requests per second",
     )
     request_timeout: int = Field(
         default=300,

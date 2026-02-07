@@ -84,7 +84,6 @@ class VLLMEngine:
                     enforce_eager=self.enforce_eager,
                     swap_space=self.swap_space,
                     trust_remote_code=True,
-                    disable_log_requests=True,  # Reduce log noise
                 )
 
                 # Initialize AsyncLLMEngine
