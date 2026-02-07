@@ -91,6 +91,7 @@ app.add_middleware(
 app.add_middleware(
     RateLimitMiddleware,
     requests_per_minute=settings.rate_limit,
+    burst_size=settings.rate_limit_burst,
 )
 
 # Setup Prometheus metrics

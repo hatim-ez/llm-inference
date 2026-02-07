@@ -18,11 +18,11 @@ class Settings(BaseSettings):
 
     # Model Configuration
     model_name: str = Field(
-        default="Llama-3.2-11B-Vision-Instruct",
+        default="Llama-3.2-3B-Instruct",
         description="Name of the model",
     )
     model_path: str = Field(
-        default="/home/ubuntu/models/llama-3.2-11b-vision",
+        default="/home/ubuntu/models/llama-3.2-3b",
         description="Path to the model weights",
     )
 
@@ -44,9 +44,9 @@ class Settings(BaseSettings):
         description="Maximum sequence length",
     )
     max_num_seqs: int = Field(
-        default=128,
+        default=8,
         ge=1,
-        description="Maximum number of sequences to process in parallel",
+        description="Maximum number of sequences to batch together (8 recommended for T4)",
     )
     enforce_eager: bool = Field(
         default=False,
@@ -70,9 +70,14 @@ class Settings(BaseSettings):
         description="API port",
     )
     rate_limit: int = Field(
-        default=100,
+        default=1000,
         ge=1,
         description="Requests per minute rate limit",
+    )
+    rate_limit_burst: int = Field(
+        default=100,
+        ge=1,
+        description="Maximum burst requests per second",
     )
     request_timeout: int = Field(
         default=300,
