@@ -44,9 +44,9 @@ class Settings(BaseSettings):
         description="Maximum sequence length",
     )
     max_num_seqs: int = Field(
-        default=128,
+        default=8,
         ge=1,
-        description="Maximum number of sequences to process in parallel",
+        description="Maximum number of sequences to batch together (8 recommended for T4)",
     )
     enforce_eager: bool = Field(
         default=False,
