@@ -63,6 +63,7 @@ def run_benchmark(
     max_tokens: int,
     warmup_runs: int = 3,
     gpu_memory_utilization: float = 0.90,
+    max_model_len: int | None = None,
 ) -> list[BenchmarkResult]:
     """Run inference benchmarks.
 
@@ -73,6 +74,7 @@ def run_benchmark(
         max_tokens: Maximum tokens to generate.
         warmup_runs: Number of warmup runs.
         gpu_memory_utilization: GPU memory utilization.
+        max_model_len: Maximum model context length (reduces KV cache memory).
 
     Returns:
         List of benchmark results.
@@ -82,11 +84,15 @@ def run_benchmark(
     print("Loading model...")
     start_load = time.time()
 
-    llm = LLM(
-        model=model_path,
-        gpu_memory_utilization=gpu_memory_utilization,
-        trust_remote_code=True,
-    )
+    llm_kwargs = {
+        "model": model_path,
+        "gpu_memory_utilization": gpu_memory_utilization,
+        "trust_remote_code": True,
+    }
+    if max_model_len is not None:
+        llm_kwargs["max_model_len"] = max_model_len
+
+    llm = LLM(**llm_kwargs)
 
     load_time = time.time() - start_load
     print(f"Model loaded in {load_time:.2f}s")
@@ -227,6 +233,12 @@ def main():
         default=None,
         help="Output JSON file for results",
     )
+    parser.add_argument(
+        "--max-model-len",
+        type=int,
+        default=None,
+        help="Maximum model context length (reduces KV cache memory usage)",
+    )
 
     args = parser.parse_args()
 
@@ -240,6 +252,8 @@ def main():
     print(f"Prompts per batch: {args.num_prompts}")
     print(f"Max tokens: {args.max_tokens}")
     print(f"GPU memory utilization: {args.gpu_memory_utilization}")
+    if args.max_model_len:
+        print(f"Max model length: {args.max_model_len}")
 
     results = run_benchmark(
         model_path=args.model,
@@ -247,6 +261,7 @@ def main():
         num_prompts=args.num_prompts,
         max_tokens=args.max_tokens,
         gpu_memory_utilization=args.gpu_memory_utilization,
+        max_model_len=args.max_model_len,
     )
 
     # Summary table
