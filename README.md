@@ -351,6 +351,181 @@ nvidia-smi
 sudo journalctl -u llm-api -f
 ```
 
+## Future Improvements
+
+This project provides a solid foundation for LLM inference. Here are ideas for further enhancements:
+
+### Architecture Improvements
+
+#### 1. Decouple API Layer from GPU Inference
+
+Separate the FastAPI server from the vLLM engine into independent services:
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  Load Balancer  │     │  Load Balancer  │     │                 │
+└────────┬────────┘     └────────┬────────┘     │                 │
+         │                       │              │                 │
+    ┌────┴────┐             ┌────┴────┐        │                 │
+    ▼         ▼             ▼         ▼        │                 │
+┌───────┐ ┌───────┐    ┌───────┐ ┌───────┐    │   Message       │
+│FastAPI│ │FastAPI│    │ vLLM  │ │ vLLM  │◄───│   Queue         │
+│  #1   │ │  #2   │───▶│ GPU#1 │ │ GPU#2 │    │  (Redis/Kafka)  │
+└───────┘ └───────┘    └───────┘ └───────┘    │                 │
+                                               └─────────────────┘
+```
+
+**Benefits:**
+- Scale API and GPU layers independently
+- Restart API without reloading model (model stays warm)
+- Add/remove GPUs without API downtime
+- Better resource utilization
+
+**Implementation options:**
+- Redis Streams for request queuing
+- gRPC for low-latency communication
+- Kubernetes with separate deployments
+
+#### 2. Request Priority Queuing
+
+Implement priority lanes for different request types:
+
+```python
+# High priority: real-time chat
+# Medium priority: batch processing
+# Low priority: background tasks
+```
+
+#### 3. Model Sharding Across GPUs
+
+For larger models, implement tensor parallelism:
+
+```bash
+# Example: 70B model across 4 GPUs
+TENSOR_PARALLEL_SIZE=4 uvicorn app.main:app
+```
+
+### Performance Optimizations
+
+#### 4. Speculative Decoding
+
+Use a smaller "draft" model to speed up generation:
+- Draft model proposes tokens
+- Main model verifies in parallel
+- Can provide 2-3x speedup
+
+#### 5. Quantization
+
+Reduce memory and increase throughput:
+
+```python
+# AWQ quantization (4-bit)
+engine_args = AsyncEngineArgs(
+    model=model_path,
+    quantization="awq",
+)
+```
+
+#### 6. Prefix Caching
+
+Cache common prompt prefixes (system prompts) across requests:
+
+```python
+engine_args = AsyncEngineArgs(
+    model=model_path,
+    enable_prefix_caching=True,
+)
+```
+
+### Operational Improvements
+
+#### 7. Graceful Degradation
+
+- Circuit breaker for GPU failures
+- Fallback to smaller model under load
+- Request shedding with backpressure
+
+#### 8. A/B Testing Infrastructure
+
+Route traffic between model versions:
+
+```python
+@app.post("/v1/chat/completions")
+async def chat(request: Request):
+    model = select_model(user_id, experiment="new_model_test")
+    return await generate(model, request)
+```
+
+#### 9. Cost Optimization
+
+- Spot instance support with checkpointing
+- Auto-scaling based on queue depth
+- Scheduled scale-down during off-peak
+
+### Observability Enhancements
+
+#### 10. Distributed Tracing
+
+Add OpenTelemetry for end-to-end request tracing:
+
+```python
+from opentelemetry import trace
+
+tracer = trace.get_tracer(__name__)
+
+@app.post("/v1/chat/completions")
+async def chat(request: Request):
+    with tracer.start_as_current_span("chat_completion"):
+        # ... generation logic
+```
+
+#### 11. Advanced Metrics
+
+- Token-level latency breakdown (prefill vs decode)
+- KV cache hit rates
+- Batch utilization histograms
+- Per-user usage tracking
+
+### Security Hardening
+
+#### 12. Input Validation & Guardrails
+
+- Prompt injection detection
+- Output filtering for PII/harmful content
+- Token budget enforcement per user
+
+#### 13. Authentication & Multi-tenancy
+
+- JWT-based authentication
+- Per-tenant rate limiting and quotas
+- Usage metering for billing
+
+### Developer Experience
+
+#### 14. Local Development Mode
+
+- Mock vLLM engine for testing without GPU
+- Recorded responses for deterministic tests
+- Docker Compose for full local stack
+
+#### 15. CLI Tools
+
+```bash
+# Interactive chat
+llm-inference chat --model llama-3.2-3b
+
+# Batch processing
+llm-inference batch --input prompts.jsonl --output results.jsonl
+
+# Model management
+llm-inference models list
+llm-inference models download meta-llama/Llama-3.2-3B
+```
+
+### Contributing
+
+Contributions are welcome! Pick an item from the list above or propose your own improvement.
+
 ## License
 
 MIT License
