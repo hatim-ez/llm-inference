@@ -71,8 +71,14 @@ class VLLMEngine:
             )
 
             try:
+                import os
+
                 from vllm import AsyncLLMEngine
                 from vllm.engine.arg_utils import AsyncEngineArgs
+
+                # Force V0 engine for Llama 3.2 Vision compatibility
+                # V1 engine doesn't support MllamaProcessor multimodal yet
+                os.environ["VLLM_USE_V1"] = "0"
 
                 # Configure AsyncLLMEngine for continuous batching
                 engine_args = AsyncEngineArgs(
@@ -86,7 +92,7 @@ class VLLMEngine:
                     trust_remote_code=True,
                 )
 
-                # Initialize AsyncLLMEngine
+                # Initialize AsyncLLMEngine with V0 backend
                 self._engine = AsyncLLMEngine.from_engine_args(engine_args)
 
                 self._initialized = True
